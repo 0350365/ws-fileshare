@@ -2,6 +2,7 @@ export interface FileTransferMetadata {
   filename: string;
   totalBufferSize: number;
   bufferSize: number;
+  type: string;
 }
 
 export interface FileUpdate {
@@ -16,4 +17,5 @@ export enum SocketEvents {
   FILE_SHARE_START = "fs-start",
   FILE_SHARE_METADATA = "fs-meta",
   FILE_SHARE_BUFFER = "fs-raw",
+  FILE_SHARE_DOWNLOAD = "download-request",
 }

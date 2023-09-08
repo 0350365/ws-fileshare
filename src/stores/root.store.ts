@@ -43,6 +43,7 @@ class RootStore {
 
   addFile(file: File): string {
     const id = nanoid();
+    console.log("Adding a new file");
     this._clientUploadedFiles[id] = file;
 
     const action: FileUpdate = {
@@ -53,8 +54,8 @@ class RootStore {
     };
 
     this.emit(SocketEvents.FILE_LIST_UPDATE, action);
-
-    return id;
+    const url = URL.createObjectURL(file);
+    return url;
   }
 
   removeFile(id: string) {
@@ -68,7 +69,9 @@ class RootStore {
     this.emit(SocketEvents.FILE_LIST_UPDATE, action);
   }
 
-  sendFileDownloadRequest(fileId: string, clientId: string) {}
+  sendFileDownloadRequest(fileId: string, clientId: string) {
+    //this.emit(SocketEvents.FILE_SHARE_DOWNLOAD, {})
+  }
 
   get files() {
     return this._clientUploadedFiles;

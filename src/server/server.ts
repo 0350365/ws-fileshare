@@ -26,7 +26,7 @@ io.on("connection", (socket) => {
   console.log(`Connection received from ${socket.id}`);
 
   socket.on("download-request", (arg) => {
-    io.emit("message", arg);
+    io.to(arg.id).emit("download-request", arg);
   });
 
   socket.on("update-file", (update: FileUpdate) => {

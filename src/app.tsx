@@ -5,21 +5,27 @@ import { observer } from "mobx-react-lite";
 import { FileTransferMetadata, FileUpdate, SocketEvents } from "./utils/types";
 import { Header } from "./components/header";
 
+interface FileList {
+  name: string;
+  id: string;
+  uploadedBy: string;
+  blobURL?: string;
+}
+
 const App = observer(() => {
   const root = useRootStore();
 
-  const [fileList, setFileList] = useState<
-    { name: string; id: string; uploadedBy: string }[]
-  >([]);
+  const [fileList, setFileList] = useState<FileList[]>([]);
 
   const [incomingBuffer, setIncomingBuffer] = useState<{
     metadata?: any;
-    buffer?: Uint8Array;
+    buffer: Uint8Array;
     progress: number;
-  }>({ progress: 0 });
+  }>({ progress: 0, buffer: new Uint8Array() });
 
   useEffect(() => {
     root.on(SocketEvents.FILE_LIST_UPDATE, (update: FileUpdate) => {
+      console.log(`Adding new entry to frontend file list`);
       if (update.action === "add") {
         const { action: _, ...rest } = update;
         setFileList((prev) => {
@@ -47,17 +53,31 @@ const App = observer(() => {
     );
 
     root.on(SocketEvents.FILE_SHARE_BUFFER, (buffer: Uint8Array) => {
-      console.log("file-transmit incoming buffer", buffer);
       setIncomingBuffer((prev) => {
-        prev.buffer?.set(buffer, prev.progress);
+        prev.buffer.set(new Uint8Array(buffer), prev.progress);
         prev.progress += buffer.byteLength;
+        console.log(prev.buffer);
         return prev;
       });
 
       if (incomingBuffer.progress !== incomingBuffer.metadata.totalBufferSize) {
         root.emit(SocketEvents.FILE_SHARE_START, {});
+        console.log("File share start event");
       } else {
         console.log("TRANSFER DONE", incomingBuffer);
+        const url = root.addFile(
+          new File(
+            [incomingBuffer.buffer as Uint8Array],
+            incomingBuffer.metadata.filename,
+            {
+              type: incomingBuffer.metadata.type,
+            }
+          )
+        );
+        setFileList((prev) => {
+          prev[0].blobURL = url;
+          return prev;
+        });
       }
     });
   }, []);
@@ -68,8 +88,9 @@ const App = observer(() => {
       filename: file.name,
       totalBufferSize: array.length,
       bufferSize: 2048 * 4,
+      type: file.type,
     };
-    //console.log(file, metadata, array);
+
     root.emit(SocketEvents.FILE_SHARE_METADATA, { metadata: metadata });
     root.on(SocketEvents.FILE_SHARE_START, () => {
       const chunk = array.slice(0, metadata.bufferSize);
@@ -81,7 +102,6 @@ const App = observer(() => {
       }
     });
   };
-
   return (
     <div className="App">
       <Header />
@@ -109,12 +129,7 @@ const App = observer(() => {
               >
                 Delete
               </Button>,
-              <Button
-                type="primary"
-                onClick={() =>
-                  root.sendFileDownloadRequest(item.id, item.uploadedBy)
-                }
-              >
+              <Button type="primary" href={item.blobURL} download={item.name}>
                 Download
               </Button>,
             ]}
