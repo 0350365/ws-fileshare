@@ -9,6 +9,7 @@ class RootStore {
   _id: string = "";
 
   _clientUploadedFiles: Record<string, File> = {};
+  _fileDownloadURLs: Record<string, string> = {};
 
   constructor() {
     makeAutoObservable(this);
@@ -41,21 +42,13 @@ class RootStore {
     this._socket.off(event).on(event, callback);
   }
 
-  addFile(file: File): string {
-    const id = nanoid();
-    console.log("Adding a new file");
-    this._clientUploadedFiles[id] = file;
-
-    const action: FileUpdate = {
-      action: "add",
-      name: file.name,
-      id: id,
-      uploadedBy: this._id,
-    };
-
-    this.emit(SocketEvents.FILE_LIST_UPDATE, action);
-    const url = URL.createObjectURL(file);
-    return url;
+  addFile(file: File, fileid?: string): string {
+    const id = fileid || nanoid();
+    if (!this.files[id]) {
+      this._clientUploadedFiles[id] = file;
+    }
+    this.createFileDownloadURL(id, file);
+    return id;
   }
 
   removeFile(id: string) {
@@ -69,8 +62,10 @@ class RootStore {
     this.emit(SocketEvents.FILE_LIST_UPDATE, action);
   }
 
-  sendFileDownloadRequest(fileId: string, clientId: string) {
-    //this.emit(SocketEvents.FILE_SHARE_DOWNLOAD, {})
+  createFileDownloadURL(fileId: string, file: File) {
+    const url = URL.createObjectURL(file);
+    this._fileDownloadURLs[fileId] = url;
+    return url;
   }
 
   get files() {
@@ -83,6 +78,10 @@ class RootStore {
 
   get socketId() {
     return this._id;
+  }
+
+  get blobURLs() {
+    return this._fileDownloadURLs;
   }
 }
 export const rootStore: RootStore = new RootStore();

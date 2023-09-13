@@ -9,6 +9,37 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+} 
+
+#listWrapper {
+  display: flex;
+  justify-content:center;
+  align-items: center;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 70%;
+}
+
+#listWrapper > * {
+  width:100%;
+}
+#listWrapper .ant-upload, #listWrapper button {
+  width: 100%;
+}
+#listWrapper > span {
+  display: flex;
+  justify-content:center;
+  align-items: center;
+}
+
+#listWrapper > button {
+  width: 100%;
+}
+
+#container{
+  display: flex;
+  justify-content:center;
+  align-items: center;
 }
 
 

@@ -3,6 +3,7 @@ export interface FileTransferMetadata {
   totalBufferSize: number;
   bufferSize: number;
   type: string;
+  id: string;
 }
 
 export interface FileUpdate {

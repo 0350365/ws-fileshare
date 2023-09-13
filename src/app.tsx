@@ -4,12 +4,14 @@ import { useRootStore } from "./utils/use-root-store";
 import { observer } from "mobx-react-lite";
 import { FileTransferMetadata, FileUpdate, SocketEvents } from "./utils/types";
 import { Header } from "./components/header";
+import { DownloadButton } from "./components/downloadButton";
+import { nanoid } from "nanoid";
 
 interface FileList {
   name: string;
   id: string;
   uploadedBy: string;
-  blobURL?: string;
+  blobURL: string;
 }
 
 const App = observer(() => {
@@ -29,7 +31,7 @@ const App = observer(() => {
       if (update.action === "add") {
         const { action: _, ...rest } = update;
         setFileList((prev) => {
-          return prev.concat(rest);
+          return prev.concat({ ...rest, blobURL: "" });
         });
       }
       if (update.action === "remove") {
@@ -56,7 +58,6 @@ const App = observer(() => {
       setIncomingBuffer((prev) => {
         prev.buffer.set(new Uint8Array(buffer), prev.progress);
         prev.progress += buffer.byteLength;
-        console.log(prev.buffer);
         return prev;
       });
 
@@ -65,30 +66,36 @@ const App = observer(() => {
         console.log("File share start event");
       } else {
         console.log("TRANSFER DONE", incomingBuffer);
-        const url = root.addFile(
-          new File(
-            [incomingBuffer.buffer as Uint8Array],
-            incomingBuffer.metadata.filename,
-            {
-              type: incomingBuffer.metadata.type,
-            }
-          )
+        root.addFile(
+          new File([incomingBuffer.buffer], incomingBuffer.metadata.filename, {
+            type: incomingBuffer.metadata.type,
+          }),
+          incomingBuffer.metadata.id
         );
-        setFileList((prev) => {
-          prev[0].blobURL = url;
-          return prev;
-        });
       }
     });
   }, []);
 
   const handleFileUpload = async (file: File) => {
     let array = await file.arrayBuffer().then((data) => new Uint8Array(data));
+
+    const fileID = nanoid();
+
+    const action: FileUpdate = {
+      action: "add",
+      name: file.name,
+      id: fileID,
+      uploadedBy: root._id,
+    };
+
+    root.emit(SocketEvents.FILE_LIST_UPDATE, action);
+
     const metadata: FileTransferMetadata = {
       filename: file.name,
       totalBufferSize: array.length,
       bufferSize: 2048 * 4,
       type: file.type,
+      id: fileID,
     };
 
     root.emit(SocketEvents.FILE_SHARE_METADATA, { metadata: metadata });
@@ -102,40 +109,45 @@ const App = observer(() => {
       }
     });
   };
+
+  console.log(fileList);
+
   return (
     <div className="App">
       <Header />
-      <Upload
-        showUploadList={false}
-        multiple
-        customRequest={(options) => {
-          root.addFile(options.file as File);
-          handleFileUpload(options.file as File);
-        }}
-      >
-        <Button>Upload files</Button>
-      </Upload>
-      <List
-        dataSource={fileList}
-        bordered
-        renderItem={(item) => (
-          <List.Item
-            key={item.id}
-            actions={[
-              <Button
-                type="link"
-                danger
-                onClick={() => root.removeFile(item.id)}
-              >
-                Delete
-              </Button>,
-              <Button type="primary" href={item.blobURL} download={item.name}>
-                Download
-              </Button>,
-            ]}
-          >{`Name: ${item.name}\n Uploaded By: ${item.uploadedBy}`}</List.Item>
-        )}
-      />
+      <div id="container">
+        <div id="listWrapper">
+          <Upload
+            showUploadList={false}
+            multiple
+            customRequest={(options) => {
+              handleFileUpload(options.file as File);
+            }}
+          >
+            <Button>Upload files</Button>
+          </Upload>
+          <List
+            dataSource={fileList}
+            bordered
+            style={{ backgroundColor: "white" }}
+            renderItem={(item) => (
+              <List.Item
+                key={item.id}
+                actions={[
+                  <Button
+                    type="link"
+                    danger
+                    onClick={() => root.removeFile(item.id)}
+                  >
+                    Delete
+                  </Button>,
+                  <DownloadButton id={item.id} />,
+                ]}
+              >{`Name: ${item.name}\n Uploaded By: ${item.uploadedBy}`}</List.Item>
+            )}
+          />
+        </div>
+      </div>
     </div>
   );
 });

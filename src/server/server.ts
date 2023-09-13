@@ -24,6 +24,7 @@ app.get("/", (_, res) => {
 
 io.on("connection", (socket) => {
   console.log(`Connection received from ${socket.id}`);
+  socket.emit("user-connect", socket.id);
 
   socket.on("download-request", (arg) => {
     io.to(arg.id).emit("download-request", arg);
