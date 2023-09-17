@@ -13,6 +13,13 @@ export interface FileUpdate {
   uploadedBy: string;
 }
 
+export interface FileList {
+  name: string;
+  id: string;
+  uploadedBy: string;
+  blobURL: string;
+}
+
 export enum SocketEvents {
   FILE_LIST_UPDATE = "update-file",
   FILE_SHARE_START = "fs-start",

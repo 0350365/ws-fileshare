@@ -11,6 +11,11 @@
   -webkit-text-size-adjust: 100%;
 } 
 
+body{
+  background-color: #a8dadc9e;
+  color: #1D3557
+}
+
 #listWrapper {
   display: flex;
   justify-content:center;
