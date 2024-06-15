@@ -4,12 +4,12 @@ import { nanoid } from "nanoid";
 import { FileUpdate, SocketEvents } from "../utils/types";
 
 class RootStore {
-  _socket: Socket;
-  _connected: boolean = false;
-  _id: string = "";
+  private _socket: Socket;
+  private _connected: boolean = false;
+  private _id: string = "";
 
-  _clientUploadedFiles: Record<string, File> = {};
-  _fileDownloadURLs: Record<string, string> = {};
+  private _clientUploadedFiles: Record<string, File> = {};
+  private _fileDownloadURLs: Record<string, string> = {};
 
   constructor() {
     makeAutoObservable(this);
@@ -47,7 +47,6 @@ class RootStore {
     if (!this.files[id]) {
       this._clientUploadedFiles[id] = file;
     }
-    this.createFileDownloadURL(id, file);
     return id;
   }
 
@@ -60,12 +59,6 @@ class RootStore {
     };
 
     this.emit(SocketEvents.FILE_LIST_UPDATE, action);
-  }
-
-  createFileDownloadURL(fileId: string, file: File) {
-    const url = URL.createObjectURL(file);
-    this._fileDownloadURLs[fileId] = url;
-    return url;
   }
 
   get files() {

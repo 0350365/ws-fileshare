@@ -19,16 +19,47 @@ server.listen(PORT_SERVER, "0.0.0.0", () => {
   console.log(`Listening on port ${PORT_SERVER}`);
 });
 
+const connections = new Map<string, string[]>();
+const files = new Map<string, any>();
+
 io.on("connection", (socket) => {
   console.log(`Connection received from ${socket.id}`);
-  socket.emit("user-connect", socket.id);
+  connections.set(socket.id, []);
+  io.emit(SocketEvents.USER_CONNECTION_UPDATE, Array.from(connections.keys()));
+  io.emit(SocketEvents.FILE_LIST_UPDATE, Object.fromEntries(files));
 
-  socket.on(SocketEvents.FILE_SHARE_DOWNLOAD, (arg) => {
-    io.to(arg.id).emit(SocketEvents.FILE_SHARE_DOWNLOAD, arg);
+  socket.on(SocketEvents.FILE_REQUEST_DOWNLOAD, ({ fileId, requestId }) => {
+    const fileUploader = files.get(fileId)?.uploadedBy;
+    console.log(
+      `Requesting download of ${fileId} to ${requestId} from ${fileUploader}`
+    );
+    if (!fileUploader) {
+      console.log(`File ${fileId} not found`);
+      return;
+    }
+    io.to(fileUploader).emit(SocketEvents.FILE_REQUEST_DOWNLOAD, {
+      fileId: fileId,
+      requestId,
+    });
   });
 
   socket.on(SocketEvents.FILE_LIST_UPDATE, (update: FileUpdate) => {
-    io.emit(SocketEvents.FILE_LIST_UPDATE, [update]);
+    switch (update.action) {
+      case "add":
+        files.set(update.id, {
+          uploadedBy: update.uploadedBy,
+          name: update.name,
+        });
+        connections.get(update.uploadedBy)?.push(update.id);
+        break;
+      case "remove":
+        files.delete(update.id);
+        connections
+          .get(update.uploadedBy)
+          ?.splice(connections.get(update.uploadedBy)?.indexOf(update.id) ?? 0);
+        break;
+    }
+    io.emit(SocketEvents.FILE_LIST_UPDATE, Object.fromEntries(files));
   });
 
   socket.on(
@@ -48,5 +79,10 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log(`User ${socket.id} disconnected`);
+    connections.delete(socket.id);
+    io.emit(
+      SocketEvents.USER_CONNECTION_UPDATE,
+      Array.from(connections.keys())
+    );
   });
 });

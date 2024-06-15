@@ -4,7 +4,6 @@ import { useRootStore } from "./utils/use-root-store";
 import { observer } from "mobx-react-lite";
 import { FileTransferMetadata, FileUpdate, SocketEvents } from "./utils/types";
 import { Header } from "./components/header";
-import { nanoid } from "nanoid";
 import { FileList } from "./utils/types";
 import { DownloadItem } from "./components/downloadItem";
 
@@ -12,6 +11,9 @@ const App = observer(() => {
   const root = useRootStore();
 
   const [fileList, setFileList] = useState<FileList[]>([]);
+  const [numActiveConnections, setNumActiveConnections] = useState<number>(
+    Number(root.socketStatus)
+  );
 
   const [incomingBuffer, setIncomingBuffer] = useState<{
     metadata?: any;
@@ -20,20 +22,25 @@ const App = observer(() => {
   }>({ progress: 0, buffer: new Uint8Array() });
 
   useEffect(() => {
-    root.on(SocketEvents.FILE_LIST_UPDATE, (update: FileUpdate[]) => {
-      update.forEach((u) => {
-        if (u.action === "add") {
-          const { action: _, ...rest } = u;
-          setFileList((prev) => {
-            return prev.concat({ ...rest, blobURL: "" });
-          });
-        }
-        if (u.action === "remove") {
-          setFileList((prev) => {
-            return prev.filter((file) => file.id !== u.id);
-          });
-        }
-      });
+    root.on(SocketEvents.FILE_LIST_UPDATE, (update) => {
+      console.log(update);
+      setFileList(
+        Object.keys(update).map((key) => ({
+          name: update[key].name,
+          uploadedBy: update[key].uploadedBy,
+          id: key,
+        }))
+      );
+    });
+
+    root.on(SocketEvents.USER_CONNECTION_UPDATE, (connections) => {
+      console.log(connections);
+      setNumActiveConnections(connections.length);
+    });
+
+    root.on(SocketEvents.FILE_REQUEST_DOWNLOAD, ({ fileId, requestId }) => {
+      console.log(`${requestId} has requested download of ${fileId}`);
+      console.log(root.files[fileId]);
     });
 
     root.on(
@@ -59,6 +66,9 @@ const App = observer(() => {
       if (incomingBuffer.progress !== incomingBuffer.metadata.totalBufferSize) {
         root.emit(SocketEvents.FILE_SHARE_START, {});
         console.log("File share start event");
+        console.log(
+          incomingBuffer.progress / incomingBuffer.metadata.totalBufferSize
+        );
       } else {
         console.log("TRANSFER DONE", incomingBuffer);
         root.addFile(
@@ -72,40 +82,38 @@ const App = observer(() => {
   }, []);
 
   const handleFileUpload = async (file: File) => {
-    let array = await file.arrayBuffer().then((data) => new Uint8Array(data));
+    // let array = await file.arrayBuffer().then((data) => new Uint8Array(data));
 
-    const fileID = nanoid();
+    const fileID = root.addFile(file);
 
     const action: FileUpdate = {
       action: "add",
       name: file.name,
       id: fileID,
-      uploadedBy: root._id,
+      uploadedBy: root.socketId,
     };
 
     root.emit(SocketEvents.FILE_LIST_UPDATE, action);
 
-    const metadata: FileTransferMetadata = {
-      filename: file.name,
-      totalBufferSize: array.length,
-      bufferSize: 2048 * 4,
-      type: file.type,
-      id: fileID,
-    };
+    // const metadata: FileTransferMetadata = {
+    //   filename: file.name,
+    //   totalBufferSize: array.length,
+    //   bufferSize: 2048 * 4,
+    //   type: file.type,
+    //   id: fileID,
+    // };
 
-    root.emit(SocketEvents.FILE_SHARE_METADATA, { metadata: metadata });
-    root.on(SocketEvents.FILE_SHARE_START, () => {
-      const chunk = array.slice(0, metadata.bufferSize);
-      array = array.slice(metadata.bufferSize, metadata.totalBufferSize);
-      if (chunk.length !== 0) {
-        root.emit(SocketEvents.FILE_SHARE_BUFFER, {
-          buffer: chunk,
-        });
-      }
-    });
+    // root.emit(SocketEvents.FILE_SHARE_METADATA, { metadata: metadata });
+    // root.on(SocketEvents.FILE_SHARE_START, () => {
+    //   const chunk = array.slice(0, metadata.bufferSize);
+    //   array = array.slice(metadata.bufferSize, metadata.totalBufferSize);
+    //   if (chunk.length !== 0) {
+    //     root.emit(SocketEvents.FILE_SHARE_BUFFER, {
+    //       buffer: chunk,
+    //     });
+    //   }
+    // });
   };
-
-  console.log(fileList);
 
   return (
     <div className="App">
@@ -131,6 +139,7 @@ const App = observer(() => {
             style={{ backgroundColor: "white" }}
             renderItem={(item) => <DownloadItem item={item} />}
           />
+          <p>Number of active connections: {numActiveConnections}</p>
         </div>
       </div>
     </div>

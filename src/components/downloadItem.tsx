@@ -26,6 +26,12 @@ export const DownloadItem = observer(({ item }: { item: FileList }) => {
         </Button>,
         <DownloadButton id={item.id} />,
       ]}
-    >{`Name: ${item.name}\n Uploaded By: ${item.uploadedBy}`}</DownloadItemWrapper>
+    >
+      <div>
+        <b>{item.name}</b>
+        <p>Uploaded by: {item.uploadedBy}</p>
+        <p>File ID: {item.id}</p>
+      </div>
+    </DownloadItemWrapper>
   );
 });

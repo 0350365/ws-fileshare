@@ -17,7 +17,6 @@ export interface FileList {
   name: string;
   id: string;
   uploadedBy: string;
-  blobURL: string;
 }
 
 export enum SocketEvents {
@@ -25,5 +24,6 @@ export enum SocketEvents {
   FILE_SHARE_START = "fs-start",
   FILE_SHARE_METADATA = "fs-meta",
   FILE_SHARE_BUFFER = "fs-raw",
-  FILE_SHARE_DOWNLOAD = "download-request",
+  FILE_REQUEST_DOWNLOAD = "download-request",
+  USER_CONNECTION_UPDATE = "user-connect",
 }
