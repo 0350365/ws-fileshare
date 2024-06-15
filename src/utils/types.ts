@@ -1,9 +1,26 @@
-export interface FileTransferMetadata {
+export interface FileMetadata {
   filename: string;
   totalBufferSize: number;
   bufferSize: number;
   type: string;
-  id: string;
+  fileId: string;
+  recipientId: string;
+  senderId: string;
+}
+
+export interface FileTransferPacket {
+  fileId: string;
+  seq: number;
+  recipientId: string;
+  senderId: string;
+  bufferSize: number;
+  buffer?: Uint8Array;
+}
+
+export interface IncomingFileTransfer {
+  buffer: Uint8Array;
+  metadata: FileMetadata;
+  progress: number;
 }
 
 export interface FileUpdate {

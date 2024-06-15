@@ -1,7 +1,7 @@
 import { io, Socket } from "socket.io-client";
-import { makeAutoObservable } from "mobx";
+import { makeAutoObservable, observable } from "mobx";
 import { nanoid } from "nanoid";
-import { FileUpdate, SocketEvents } from "../utils/types";
+import { FileUpdate, IncomingFileTransfer, SocketEvents } from "../utils/types";
 
 class RootStore {
   private _socket: Socket;
@@ -9,7 +9,7 @@ class RootStore {
   private _id: string = "";
 
   private _clientUploadedFiles: Record<string, File> = {};
-  private _fileDownloadURLs: Record<string, string> = {};
+  _incomingFileTransfers: Map<string, IncomingFileTransfer> = observable.map();
 
   constructor() {
     makeAutoObservable(this);
@@ -73,8 +73,24 @@ class RootStore {
     return this._id;
   }
 
-  get blobURLs() {
-    return this._fileDownloadURLs;
+  get ongoingFileTransfers() {
+    return this._incomingFileTransfers;
+  }
+
+  addNewFileTransfer(fileTransfer: IncomingFileTransfer) {
+    this._incomingFileTransfers.set(fileTransfer.metadata.fileId, fileTransfer);
+  }
+
+  removeFileTransfer(fileId: string) {
+    this._incomingFileTransfers.delete(fileId);
+  }
+
+  updateFileTransferProgress(fileId: string, newBuffer: Uint8Array) {
+    const fileTransfer = this._incomingFileTransfers.get(fileId);
+    if (!fileTransfer) return;
+    fileTransfer.buffer.set(new Uint8Array(newBuffer), fileTransfer.progress);
+    fileTransfer.progress += newBuffer.length;
+    console.log(`FIle transfer progress`, fileTransfer.progress);
   }
 }
 export const rootStore: RootStore = new RootStore();

@@ -1,8 +1,8 @@
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
-import { SocketEvents } from "../utils/types";
-import { FileTransferMetadata, FileUpdate } from "../utils/types";
+import { FileTransferPacket, SocketEvents } from "../utils/types";
+import { FileMetadata, FileUpdate } from "../utils/types";
 
 const PORT_SERVER = 3030;
 
@@ -62,19 +62,19 @@ io.on("connection", (socket) => {
     io.emit(SocketEvents.FILE_LIST_UPDATE, Object.fromEntries(files));
   });
 
-  socket.on(
-    SocketEvents.FILE_SHARE_METADATA,
-    (data: { metadata: FileTransferMetadata }) => {
-      io.emit(SocketEvents.FILE_SHARE_METADATA, data.metadata);
-    }
-  );
+  socket.on(SocketEvents.FILE_SHARE_METADATA, (metadata: FileMetadata) => {
+    io.to(metadata.recipientId).emit(
+      SocketEvents.FILE_SHARE_METADATA,
+      metadata
+    );
+  });
 
   socket.on(SocketEvents.FILE_SHARE_START, () => {
     io.emit(SocketEvents.FILE_SHARE_START, {});
   });
 
-  socket.on(SocketEvents.FILE_SHARE_BUFFER, (data) => {
-    io.emit(SocketEvents.FILE_SHARE_BUFFER, data.buffer);
+  socket.on(SocketEvents.FILE_SHARE_BUFFER, (data: FileTransferPacket) => {
+    io.to(data.senderId).emit(SocketEvents.FILE_SHARE_BUFFER, data);
   });
 
   socket.on("disconnect", () => {

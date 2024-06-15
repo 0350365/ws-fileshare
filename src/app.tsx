@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { Button, List, Upload } from "antd";
 import { useRootStore } from "./utils/use-root-store";
 import { observer } from "mobx-react-lite";
-import { FileTransferMetadata, FileUpdate, SocketEvents } from "./utils/types";
+import {
+  FileMetadata,
+  FileTransferPacket,
+  FileUpdate,
+  SocketEvents,
+} from "./utils/types";
 import { Header } from "./components/header";
 import { FileList } from "./utils/types";
 import { DownloadItem } from "./components/downloadItem";
@@ -14,12 +19,6 @@ const App = observer(() => {
   const [numActiveConnections, setNumActiveConnections] = useState<number>(
     Number(root.socketStatus)
   );
-
-  const [incomingBuffer, setIncomingBuffer] = useState<{
-    metadata?: any;
-    buffer: Uint8Array;
-    progress: number;
-  }>({ progress: 0, buffer: new Uint8Array() });
 
   useEffect(() => {
     root.on(SocketEvents.FILE_LIST_UPDATE, (update) => {
@@ -40,45 +39,117 @@ const App = observer(() => {
 
     root.on(SocketEvents.FILE_REQUEST_DOWNLOAD, ({ fileId, requestId }) => {
       console.log(`${requestId} has requested download of ${fileId}`);
-      console.log(root.files[fileId]);
+
+      const fileMetadata: FileMetadata = {
+        filename: root.files[fileId].name,
+        totalBufferSize: root.files[fileId].size,
+        bufferSize: 2048 * 8,
+        type: root.files[fileId].type,
+        fileId: fileId,
+        recipientId: requestId,
+        senderId: root.socketId,
+      };
+
+      root.emit(SocketEvents.FILE_SHARE_METADATA, fileMetadata);
+    });
+
+    root.on(SocketEvents.FILE_SHARE_METADATA, (metadata: FileMetadata) => {
+      console.log("Received file metadata", metadata);
+      root.addNewFileTransfer({
+        buffer: new Uint8Array(metadata.totalBufferSize),
+        metadata: metadata,
+        progress: 0,
+      });
+
+      root.emit(SocketEvents.FILE_SHARE_BUFFER, {
+        fileId: metadata.fileId,
+        recipientId: metadata.recipientId,
+        senderId: metadata.senderId,
+        seq: 0,
+        bufferSize: metadata.bufferSize,
+      });
     });
 
     root.on(
-      SocketEvents.FILE_SHARE_METADATA,
-      (metadata: FileTransferMetadata) => {
-        setIncomingBuffer((prev) => {
-          prev.metadata = metadata;
-          prev.progress = 0;
-          prev.buffer = new Uint8Array(metadata.totalBufferSize);
-          return prev;
+      SocketEvents.FILE_SHARE_BUFFER,
+      async (buffer: FileTransferPacket) => {
+        if (buffer.fileId in root.files) {
+          const file = root.files[buffer.fileId];
+          const seq = buffer.seq;
+          const size = buffer.bufferSize;
+
+          buffer.buffer = await file
+            .slice(seq, seq + size + 1)
+            .arrayBuffer()
+            .then((buf) => new Uint8Array(buf));
+          console.log("Sending buffer to receiver", buffer);
+          root.emit(SocketEvents.FILE_SHARE_BUFFER, {
+            ...buffer,
+            seq: seq + size,
+            senderId: buffer.recipientId,
+            recipientId: buffer.senderId,
+            bufferSize: buffer.buffer?.length,
+          });
+
+          return;
+        }
+        console.log("Incoming buffer", buffer.buffer);
+        const fileTransfer = root._incomingFileTransfers.get(buffer.fileId);
+        if (!fileTransfer) return;
+
+        root.updateFileTransferProgress(
+          buffer.fileId,
+          new Uint8Array(buffer.buffer)
+        );
+
+        if (fileTransfer.progress >= fileTransfer.metadata.totalBufferSize) {
+          const file = new File(
+            [fileTransfer.buffer],
+            fileTransfer.metadata.filename,
+            {
+              type: fileTransfer.metadata.type,
+            }
+          );
+          const url = URL.createObjectURL(file);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = fileTransfer.metadata.filename;
+          a.click();
+          URL.revokeObjectURL(url);
+          root.removeFileTransfer(buffer.fileId);
+        }
+        root.emit(SocketEvents.FILE_SHARE_BUFFER, {
+          senderId: buffer.recipientId,
+          recipientId: buffer.senderId,
+          bufferSize: fileTransfer.metadata.bufferSize,
+          seq: buffer.seq + 1,
+          fileId: buffer.fileId,
         });
-        root.emit(SocketEvents.FILE_SHARE_START, {});
+        // if (
+        //   incomingTransfers.progress !==
+        //   incomingTransfers.metadata.totalBufferSize
+        // ) {
+        //   root.emit(SocketEvents.FILE_SHARE_START, {});
+        //   console.log("File share start event");
+        //   console.log(
+        //     incomingTransfers.progress /
+        //       incomingTransfers.metadata.totalBufferSize
+        //   );
+        // } else {
+        //   console.log("TRANSFER DONE", incomingTransfers);
+        //   root.addFile(
+        //     new File(
+        //       [incomingTransfers.buffer],
+        //       incomingTransfers.metadata.filename,
+        //       {
+        //         type: incomingTransfers.metadata.type,
+        //       }
+        //     ),
+        //     incomingTransfers.metadata.id
+        //   );
+        // }
       }
     );
-
-    root.on(SocketEvents.FILE_SHARE_BUFFER, (buffer: Uint8Array) => {
-      setIncomingBuffer((prev) => {
-        prev.buffer.set(new Uint8Array(buffer), prev.progress);
-        prev.progress += buffer.byteLength;
-        return prev;
-      });
-
-      if (incomingBuffer.progress !== incomingBuffer.metadata.totalBufferSize) {
-        root.emit(SocketEvents.FILE_SHARE_START, {});
-        console.log("File share start event");
-        console.log(
-          incomingBuffer.progress / incomingBuffer.metadata.totalBufferSize
-        );
-      } else {
-        console.log("TRANSFER DONE", incomingBuffer);
-        root.addFile(
-          new File([incomingBuffer.buffer], incomingBuffer.metadata.filename, {
-            type: incomingBuffer.metadata.type,
-          }),
-          incomingBuffer.metadata.id
-        );
-      }
-    });
   }, []);
 
   const handleFileUpload = async (file: File) => {
