@@ -33,7 +33,6 @@ const App = observer(() => {
     });
 
     root.on(SocketEvents.USER_CONNECTION_UPDATE, (connections) => {
-      console.log(connections);
       setNumActiveConnections(connections.length);
     });
 
@@ -43,7 +42,7 @@ const App = observer(() => {
       const fileMetadata: FileMetadata = {
         filename: root.files[fileId].name,
         totalBufferSize: root.files[fileId].size,
-        bufferSize: 2048 * 8,
+        bufferSize: 1e5,
         type: root.files[fileId].type,
         fileId: fileId,
         recipientId: requestId,
@@ -82,7 +81,10 @@ const App = observer(() => {
             .slice(seq, seq + size + 1)
             .arrayBuffer()
             .then((buf) => new Uint8Array(buf));
-          console.log("Sending buffer to receiver", buffer);
+          console.log(
+            "Sending buffer to receiver with sequence number",
+            buffer.seq
+          );
           root.emit(SocketEvents.FILE_SHARE_BUFFER, {
             ...buffer,
             seq: seq + size,
@@ -125,36 +127,11 @@ const App = observer(() => {
           seq: buffer.seq + 1,
           fileId: buffer.fileId,
         });
-        // if (
-        //   incomingTransfers.progress !==
-        //   incomingTransfers.metadata.totalBufferSize
-        // ) {
-        //   root.emit(SocketEvents.FILE_SHARE_START, {});
-        //   console.log("File share start event");
-        //   console.log(
-        //     incomingTransfers.progress /
-        //       incomingTransfers.metadata.totalBufferSize
-        //   );
-        // } else {
-        //   console.log("TRANSFER DONE", incomingTransfers);
-        //   root.addFile(
-        //     new File(
-        //       [incomingTransfers.buffer],
-        //       incomingTransfers.metadata.filename,
-        //       {
-        //         type: incomingTransfers.metadata.type,
-        //       }
-        //     ),
-        //     incomingTransfers.metadata.id
-        //   );
-        // }
       }
     );
   }, []);
 
   const handleFileUpload = async (file: File) => {
-    // let array = await file.arrayBuffer().then((data) => new Uint8Array(data));
-
     const fileID = root.addFile(file);
 
     const action: FileUpdate = {
@@ -165,31 +142,12 @@ const App = observer(() => {
     };
 
     root.emit(SocketEvents.FILE_LIST_UPDATE, action);
-
-    // const metadata: FileTransferMetadata = {
-    //   filename: file.name,
-    //   totalBufferSize: array.length,
-    //   bufferSize: 2048 * 4,
-    //   type: file.type,
-    //   id: fileID,
-    // };
-
-    // root.emit(SocketEvents.FILE_SHARE_METADATA, { metadata: metadata });
-    // root.on(SocketEvents.FILE_SHARE_START, () => {
-    //   const chunk = array.slice(0, metadata.bufferSize);
-    //   array = array.slice(metadata.bufferSize, metadata.totalBufferSize);
-    //   if (chunk.length !== 0) {
-    //     root.emit(SocketEvents.FILE_SHARE_BUFFER, {
-    //       buffer: chunk,
-    //     });
-    //   }
-    // });
   };
 
   return (
     <div className="App">
       <Header />
-      <div id="container">
+      <div id="container" className="">
         <div id="listWrapper">
           <Upload
             showUploadList={false}
@@ -207,7 +165,7 @@ const App = observer(() => {
           <List
             dataSource={fileList}
             bordered
-            style={{ backgroundColor: "white" }}
+            className="bg-white"
             renderItem={(item) => <DownloadItem item={item} />}
           />
           <p>Number of active connections: {numActiveConnections}</p>

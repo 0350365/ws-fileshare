@@ -22,6 +22,10 @@ server.listen(PORT_SERVER, "0.0.0.0", () => {
 const connections = new Map<string, string[]>();
 const files = new Map<string, any>();
 
+app.get("/", (req, res) => {
+  res.send("File sharing server is running");
+});
+
 io.on("connection", (socket) => {
   console.log(`Connection received from ${socket.id}`);
   connections.set(socket.id, []);

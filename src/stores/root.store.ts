@@ -13,7 +13,8 @@ class RootStore {
 
   constructor() {
     makeAutoObservable(this);
-    this._socket = io(`${window.location.hostname}:3030`);
+    this._socket = io(`http://${window.location.hostname}:3030`);
+    console.log(window.location.hostname);
     this._socket.on("connect", () => {
       console.log(`Socket connected`);
       this.setConnectionStatus(true);

@@ -1,4 +1,8 @@
-:root {
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* :root {
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
   line-height: 24px;
@@ -9,16 +13,16 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
-} 
+}  */
 
-body{
+body {
   background-color: #a8dadc9e;
-  color: #1D3557
+  color: #1d3557;
 }
 
 #listWrapper {
   display: flex;
-  justify-content:center;
+  justify-content: center;
   align-items: center;
   flex-direction: column;
   gap: 0.5rem;
@@ -26,14 +30,15 @@ body{
 }
 
 #listWrapper > * {
-  width:100%;
+  width: 100%;
 }
-#listWrapper .ant-upload, #listWrapper button {
+#listWrapper .ant-upload,
+#listWrapper button {
   width: 100%;
 }
 #listWrapper > span {
   display: flex;
-  justify-content:center;
+  justify-content: center;
   align-items: center;
 }
 
@@ -41,10 +46,8 @@ body{
   width: 100%;
 }
 
-#container{
+#container {
   display: flex;
-  justify-content:center;
+  justify-content: center;
   align-items: center;
 }
-
-

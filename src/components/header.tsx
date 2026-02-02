@@ -11,7 +11,7 @@ export const Header = observer(() => {
     <HeaderWrapper>
       <h1>Upload your files</h1>
       {`Socket is ${
-        root.socketStatus ? `connected, ID: ${root._id}` : "disconnected"
+        root.socketStatus ? `connected, ID: ${root.socketId}` : "disconnected"
       }`}
     </HeaderWrapper>
   );
